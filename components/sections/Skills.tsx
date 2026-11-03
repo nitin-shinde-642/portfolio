@@ -1,107 +1,166 @@
-import { SectionHeading } from "@/components/shared/SectionHeading";
-import { Reveal } from "@/components/shared/Reveal";
-import { BentoGrid, BentoCard } from "@/components/magicui/bento-grid";
-import { skillGroups } from "@/data/skills";
-import { Server, ShoppingCart, Code2, Layers, Cloud } from "lucide-react";
-import { cn } from "@/lib/utils";
+"use client";
 
-const groupConfig: Record<
-  string,
-  {
-    icon: React.ElementType;
-    description: string;
-    span: string;
-    featured?: boolean;
-  }
-> = {
-  backend: {
-    icon: Server,
-    description: "Robust architectures, REST APIs, and database engineering.",
-    span: "col-span-1 md:col-span-2 lg:col-span-2",
-    featured: true,
-  },
-  cms: {
-    icon: ShoppingCart,
-    description: "Custom WordPress plugins, themes, and WooCommerce subscriptions.",
-    span: "col-span-1 md:col-span-1 lg:col-span-1",
-  },
-  integrations: {
-    icon: Layers,
-    description: "Payment gateways, CRMs, calendars, and third-party APIs.",
-    span: "col-span-1 md:col-span-1 lg:col-span-1",
-  },
-  frontend: {
-    icon: Code2,
-    description: "Responsive user interfaces, TypeScript, and modern UI frameworks.",
-    span: "col-span-1 md:col-span-1 lg:col-span-1",
-  },
-  cloud: {
-    icon: Cloud,
-    description: "Linux production servers, AWS infrastructure, and build tools.",
-    span: "col-span-1 md:col-span-1 lg:col-span-1",
+import { useRef } from "react";
+import {
+  motion,
+  useInView,
+  AnimatePresence,
+  type Variants,
+} from "motion/react";
+import { SectionHeading } from "@/components/shared/SectionHeading";
+import { Chip } from "@/components/ui/Chip";
+import { skillCategories, type SkillCategory } from "@/lib/data";
+import { EASE, viewportConfig } from "@/lib/motion";
+
+// ─── Animation variants ────────────────────────────────────────────────────────
+
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.6,
+      ease: EASE,
+      delay: i * 0.1,
+    },
+  }),
+};
+
+const chipContainerVariants: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.03,
+      delayChildren: 0.15,
+    },
   },
 };
+
+const chipVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.8 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.3, ease: EASE },
+  },
+};
+
+// ─── Category descriptions ─────────────────────────────────────────────────────
+
+const descriptions: Record<string, string> = {
+  backend: "Robust architectures, REST APIs, and database engineering.",
+  frontend: "Responsive user interfaces, TypeScript, and modern UI frameworks.",
+  cms: "Custom WordPress plugins, themes, and WooCommerce subscriptions.",
+  cloud: "Linux production servers, AWS infrastructure, and build tools.",
+  integrations: "Payment gateways, CRMs, calendars, and third-party APIs.",
+};
+
+// ─── SkillCard ─────────────────────────────────────────────────────────────────
+
+interface SkillCardProps {
+  category: SkillCategory;
+  index: number;
+}
+
+function SkillCard({ category, index }: SkillCardProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { ...viewportConfig, once: true });
+
+  const description = category.description ?? descriptions[category.id] ?? "";
+
+  return (
+    <motion.div
+      ref={ref}
+      custom={index}
+      variants={cardVariants}
+      initial="hidden"
+      animate={isInView ? "visible" : "hidden"}
+      whileHover={{ y: -6, transition: { duration: 0.25, ease: EASE } }}
+      className={cn(
+        // Grid span from data
+        category.span,
+        // Card surface
+        "bg-[#111114] rounded-[20px] border border-[rgba(255,255,255,0.08)] p-6 md:p-8",
+        "flex flex-col gap-5",
+        // Subtle hover glow
+        "transition-shadow duration-300 hover:shadow-[0_8px_32px_rgba(139,92,246,0.12)]"
+      )}
+    >
+      {/* Title */}
+      <div>
+        <h3
+          className="font-['Space_Grotesk',sans-serif] font-medium text-[#FAFAFA] text-lg leading-tight"
+          style={{ fontFamily: "var(--font-space-grotesk, 'Space Grotesk', sans-serif)" }}
+        >
+          {category.label}
+        </h3>
+        {description && (
+          <p className="mt-1 text-sm text-[#A1A1AA] leading-relaxed">
+            {description}
+          </p>
+        )}
+      </div>
+
+      {/* Chips */}
+      <motion.ul
+        variants={chipContainerVariants}
+        initial="hidden"
+        animate={isInView ? "visible" : "hidden"}
+        className="flex flex-wrap gap-2"
+        role="list"
+        aria-label={`${category.label} skills`}
+      >
+        {category.skills.map((skill) => (
+          <motion.li key={skill} variants={chipVariants}>
+            <Chip label={skill} />
+          </motion.li>
+        ))}
+      </motion.ul>
+    </motion.div>
+  );
+}
+
+// Inline cn since we need it without extra import
+function cn(...classes: (string | undefined | false | null)[]) {
+  return classes.filter(Boolean).join(" ");
+}
+
+// ─── Skills section ────────────────────────────────────────────────────────────
 
 export function Skills() {
   return (
     <section
       id="skills"
       aria-labelledby="skills-heading"
-      className="py-20 sm:py-28 border-t border-[color:var(--border)]"
-      style={{ contentVisibility: "auto", containIntrinsicSize: "0 600px" }}
+      className="py-20 md:py-32 border-t border-[rgba(255,255,255,0.08)] bg-[#09090B]"
     >
-      <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
-        <Reveal>
+      <div className="mx-auto max-w-[1200px] px-6 md:px-12">
+        {/* Section heading with fade-up */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={viewportConfig}
+          transition={{ duration: 0.7, ease: EASE }}
+        >
           <SectionHeading
-            label="Skills"
+            label="02 / Skills"
             title="Technical Skills"
-            description="Languages, frameworks, tools and services I work with regularly to build reliable web software."
             id="skills-heading"
           />
-        </Reveal>
+        </motion.div>
 
-        <div className="mt-12">
-          <BentoGrid>
-            {skillGroups.map((group, i) => {
-              const config = groupConfig[group.id] || {
-                icon: Server,
-                description: "",
-                span: "col-span-1",
-              };
-              const Icon = config.icon;
-
-              return (
-                <Reveal
-                  key={group.id}
-                  delay={i * 60}
-                  className={config.span}
-                >
-                  <BentoCard
-                    name={group.label}
-                    description={config.description}
-                    Icon={Icon}
-                    className="h-full"
-                  >
-                    <ul className="flex flex-wrap gap-2 pt-2" role="list">
-                      {group.skills.map((skill) => (
-                        <li key={skill}>
-                          <span
-                            className={cn(
-                              "inline-block font-mono text-xs px-2.5 py-1 rounded-md",
-                              "border border-[color:var(--border)] text-[color:var(--muted)] bg-[color:var(--background)]/60",
-                              "hover:border-[color:var(--accent)]/50 hover:text-[color:var(--text)] hover:bg-[color:var(--accent)]/10 hover:shadow-sm transition-all duration-200 cursor-default"
-                            )}
-                          >
-                            {skill}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </BentoCard>
-                </Reveal>
-              );
-            })}
-          </BentoGrid>
+        {/* Bento grid — 3 cols desktop, 1 col mobile */}
+        <div
+          className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6"
+          role="list"
+          aria-label="Skill categories"
+        >
+          <AnimatePresence>
+            {skillCategories.map((category, i) => (
+              <SkillCard key={category.id} category={category} index={i} />
+            ))}
+          </AnimatePresence>
         </div>
       </div>
     </section>

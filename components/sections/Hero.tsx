@@ -1,168 +1,554 @@
-import Link from "next/link";
-import { MapPin, Download, ArrowRight } from "lucide-react";
+"use client";
+
+import {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+import {
+  motion,
+  useScroll,
+  useTransform,
+  useSpring,
+  useReducedMotion,
+} from "motion/react";
 import { profile } from "@/data/profile";
-import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
-import { NumberTicker } from "@/components/magicui/number-ticker";
-import { Marquee } from "@/components/magicui/marquee";
-import { cn } from "@/lib/utils";
+import { EASE, wordReveal, staggerContainer, viewportConfig } from "@/lib/motion";
 
-const marqueeTechs = [
-  "PHP 8+",
-  "Laravel",
-  "WordPress",
-  "WooCommerce",
-  "REST APIs",
-  "MySQL",
-  "TypeScript",
-  "React",
-  "Next.js",
-  "Stripe",
-  "AWS EC2",
-  "Tailwind CSS",
-  "ACF Pro",
-  "Dokan",
-];
+/* ─── Design tokens ──────────────────────────────────────── */
+const ACCENT_GRADIENT = "linear-gradient(135deg, #8B5CF6 0%, #22D3EE 100%)";
+const GRADIENT_TEXT   = "bg-gradient-to-r from-[#8B5CF6] to-[#22D3EE] bg-clip-text text-transparent";
 
+/* ─── Typewriter hook ────────────────────────────────────── */
+const TYPEWRITER_ITEMS = [
+  "Laravel & WordPress Specialist",
+  "WooCommerce Expert",
+  "REST API Developer",
+] as const;
+
+function useTypewriter(items: readonly string[], charDelay = 55, pause = 1800, eraseDelay = 30) {
+  const [displayed, setDisplayed] = useState("");
+  const [itemIdx,   setItemIdx]   = useState(0);
+  const [phase,     setPhase]     = useState<"typing" | "waiting" | "erasing">("typing");
+  const charIdx = useRef(0);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    if (phase === "typing") {
+      const target = items[itemIdx];
+      if (charIdx.current < target.length) {
+        timer = setTimeout(() => {
+          setDisplayed(target.slice(0, charIdx.current + 1));
+          charIdx.current++;
+        }, charDelay);
+      } else {
+        timer = setTimeout(() => setPhase("waiting"), pause);
+      }
+    } else if (phase === "waiting") {
+      timer = setTimeout(() => setPhase("erasing"), 200);
+    } else {
+      if (charIdx.current > 0) {
+        timer = setTimeout(() => {
+          charIdx.current--;
+          setDisplayed((d) => d.slice(0, -1));
+        }, eraseDelay);
+      } else {
+        setItemIdx((i) => (i + 1) % items.length);
+        setPhase("typing");
+      }
+    }
+
+    return () => clearTimeout(timer);
+  }, [phase, displayed, itemIdx, items, charDelay, pause, eraseDelay]);
+
+  return displayed;
+}
+
+/* ─── Magnetic button hook ───────────────────────────────── */
+function useMagnetic(strength = 0.35) {
+  const ref = useRef<HTMLElement | null>(null);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = useCallback((e: globalThis.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width  / 2;
+    const cy = rect.top  + rect.height / 2;
+    const dx = e.clientX - cx;
+    const dy = e.clientY - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const radius = 80;
+    if (dist < radius) {
+      setTranslate({ x: dx * strength, y: dy * strength });
+    } else {
+      setTranslate({ x: 0, y: 0 });
+    }
+  }, [strength]);
+
+  const handleMouseLeave = useCallback(() => setTranslate({ x: 0, y: 0 }), []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener("mousemove", handleMouseMove as EventListener);
+    el.addEventListener("mouseleave", handleMouseLeave);
+    return () => {
+      el.removeEventListener("mousemove", handleMouseMove as EventListener);
+      el.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, [handleMouseMove, handleMouseLeave]);
+
+  return { ref, translate };
+}
+
+/* ─── PHP code snippet ───────────────────────────────────── */
+const PHP_CODE = `<?php
+
+class SubscriptionService
+{
+    public function renew(int $id): Response
+    {
+        $sub = Subscription::find($id);
+        return $this->gateway->charge($sub);
+    }
+}`;
+
+function CodeWindow({ prefersReduced }: { prefersReduced: boolean }) {
+  const [displayed, setDisplayed] = useState("");
+  const [cursorVisible, setCursorVisible] = useState(true);
+  const charRef = useRef(0);
+
+  /* Type-out effect */
+  useEffect(() => {
+    if (prefersReduced) {
+      setDisplayed(PHP_CODE);
+      return;
+    }
+    const type = () => {
+      if (charRef.current < PHP_CODE.length) {
+        charRef.current++;
+        setDisplayed(PHP_CODE.slice(0, charRef.current));
+        const delay = PHP_CODE[charRef.current - 1] === "\n" ? 80 : 35;
+        setTimeout(type, delay);
+      }
+    };
+    const t = setTimeout(type, 600);
+    return () => clearTimeout(t);
+  }, [prefersReduced]);
+
+  /* Blink cursor */
+  useEffect(() => {
+    const id = setInterval(() => setCursorVisible((v) => !v), 530);
+    return () => clearInterval(id);
+  }, []);
+
+  /* Color-coded PHP syntax highlighting (minimal) */
+  const renderCode = (code: string) => {
+    const lines = code.split("\n");
+    return lines.map((line, lineIdx) => {
+      const parts: React.ReactNode[] = [];
+      let remaining = line;
+      let key = 0;
+
+      const pushColored = (text: string, color: string) => {
+        parts.push(<span key={key++} style={{ color }}>{text}</span>);
+      };
+
+      // keyword highlight
+      const keywords = ["class", "public", "function", "return", "int"];
+      let matched = false;
+      for (const kw of keywords) {
+        const regex = new RegExp(`(^|\\s)(${kw})(\\s|$|\\()`);
+        if (regex.test(remaining)) {
+          const idx = remaining.indexOf(kw);
+          if (idx >= 0) {
+            if (idx > 0) pushColored(remaining.slice(0, idx), "#A1A1AA");
+            pushColored(kw, "#C084FC");
+            remaining = remaining.slice(idx + kw.length);
+            matched = true;
+            break;
+          }
+        }
+      }
+
+      // string / variable coloring
+      if (!matched) {
+        if (remaining.includes("<?php")) {
+          pushColored("<?php", "#F59E0B");
+          remaining = remaining.slice(5);
+        } else if (remaining.trim().startsWith("//")) {
+          pushColored(remaining, "#52525B");
+          remaining = "";
+        } else if (remaining.includes("$")) {
+          const idx = remaining.indexOf("$");
+          if (idx > 0) pushColored(remaining.slice(0, idx), "#A1A1AA");
+          pushColored(remaining.slice(idx, remaining.indexOf(" ", idx) > -1 ? remaining.indexOf(" ", idx) : remaining.length), "#34D399");
+          remaining = remaining.indexOf(" ", idx) > -1 ? remaining.slice(remaining.indexOf(" ", idx)) : "";
+        }
+      }
+
+      if (remaining) pushColored(remaining, "#A1A1AA");
+
+      return (
+        <div key={lineIdx} className="leading-6">
+          {parts}
+          {lineIdx === lines.length - 1 && (
+            <span
+              className="inline-block w-[2px] h-[14px] bg-[#8B5CF6] ml-[1px] align-middle"
+              style={{ opacity: cursorVisible ? 1 : 0, transition: "opacity 0.1s" }}
+              aria-hidden="true"
+            />
+          )}
+        </div>
+      );
+    });
+  };
+
+  return (
+    <div
+      className="rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden"
+      style={{
+        background: "rgba(17,17,20,0.85)",
+        backdropFilter: "blur(16px)",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)",
+      }}
+      aria-label="PHP code sample"
+    >
+      {/* Traffic lights */}
+      <div className="flex items-center gap-1.5 px-4 py-3 border-b border-[rgba(255,255,255,0.06)]">
+        <span className="w-3 h-3 rounded-full bg-[#FF5F57]" aria-hidden="true" />
+        <span className="w-3 h-3 rounded-full bg-[#FFBD2E]" aria-hidden="true" />
+        <span className="w-3 h-3 rounded-full bg-[#28C840]" aria-hidden="true" />
+        <span className="ml-auto font-mono text-xs text-[#52525B]">SubscriptionService.php</span>
+      </div>
+
+      {/* Code */}
+      <div className="p-5 font-mono text-[13px] text-[#A1A1AA] overflow-x-auto min-h-[200px]">
+        {renderCode(displayed)}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Floating tech chip ─────────────────────────────────── */
+function FloatingChip({
+  label,
+  delay,
+  x,
+  prefersReduced,
+}: {
+  label: string;
+  delay: number;
+  x: string;
+  prefersReduced: boolean;
+}) {
+  const amplitude = prefersReduced ? 0 : 8;
+  return (
+    <motion.div
+      className="absolute font-mono text-xs px-3 py-1.5 rounded-full border border-[rgba(255,255,255,0.12)] text-[#A1A1AA] pointer-events-none"
+      style={{
+        background: "rgba(17,17,20,0.9)",
+        left: x,
+        top: "0",
+        backdropFilter: "blur(8px)",
+      }}
+      animate={
+        prefersReduced
+          ? {}
+          : {
+              y: [0, -amplitude, 0, amplitude, 0],
+            }
+      }
+      transition={{
+        repeat: Infinity,
+        duration: 4 + delay * 0.5,
+        ease: "easeInOut",
+        delay,
+      }}
+    >
+      {label}
+    </motion.div>
+  );
+}
+
+/* ─── Word split animation ───────────────────────────────── */
+const HEADING = "Building Reliable, Scalable, and Efficient Web Applications.";
+const GRADIENT_WORDS = new Set(["Reliable,", "Scalable,", "Efficient"]);
+
+function AnimatedHeading({ prefersReduced }: { prefersReduced: boolean }) {
+  const words = HEADING.split(" ");
+
+  return (
+    <motion.h1
+      id="hero-heading"
+      className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#FAFAFA] leading-[1.15] font-space-grotesk"
+      variants={prefersReduced ? {} : staggerContainer}
+      initial="hidden"
+      animate="visible"
+      transition={{ staggerChildren: 0.06 }}
+    >
+      {words.map((word, i) => {
+        const isGradient = GRADIENT_WORDS.has(word);
+        return (
+          <span
+            key={i}
+            className="inline-block overflow-hidden"
+            style={{ marginRight: i < words.length - 1 ? "0.28em" : 0 }}
+          >
+            <motion.span
+              className={`inline-block ${isGradient ? GRADIENT_TEXT : ""}`}
+              variants={prefersReduced ? {} : wordReveal}
+            >
+              {word}
+            </motion.span>
+          </span>
+        );
+      })}
+    </motion.h1>
+  );
+}
+
+/* ─── Scroll indicator ───────────────────────────────────── */
+function ScrollIndicator({ prefersReduced }: { prefersReduced: boolean }) {
+  return (
+    <motion.div
+      className="hidden xl:flex absolute bottom-5 left-1/2 -translate-x-1/2 flex-col items-center gap-1.5"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 2, duration: 0.6 }}
+      aria-hidden="true"
+    >
+      <span className="font-mono text-[10px] uppercase tracking-widest text-[#52525B]">Scroll</span>
+      <div className="w-[1px] h-10 bg-[rgba(255,255,255,0.08)] relative overflow-hidden rounded-full">
+        <motion.div
+          className="absolute top-0 left-0 w-full rounded-full"
+          style={{ background: ACCENT_GRADIENT, height: "40%" }}
+          animate={prefersReduced ? {} : { y: ["0%", "250%"] }}
+          transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Hero section ───────────────────────────────────────── */
 export function Hero() {
+  const prefersReduced = useReducedMotion() ?? false;
+  const typewriterText = useTypewriter(TYPEWRITER_ITEMS);
+  const sectionRef   = useRef<HTMLElement>(null);
+
+  /* Parallax via scroll */
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end start"],
+  });
+
+  const rawCodeY = useTransform(scrollYProgress, [0, 1], ["0%", "-30%"]);
+  const rawGlowY = useTransform(scrollYProgress, [0, 1], ["0%", "-10%"]);
+
+  const codeY = useSpring(rawCodeY, { stiffness: 80, damping: 20 });
+  const glowY = useSpring(rawGlowY, { stiffness: 80, damping: 20 });
+
+  /* Magnetic buttons */
+  const { ref: btn1Ref, translate: t1 } = useMagnetic();
+  const { ref: btn2Ref, translate: t2 } = useMagnetic();
+  const { ref: btn3Ref, translate: t3 } = useMagnetic();
+
   return (
     <section
       id="home"
+      ref={sectionRef}
       aria-labelledby="hero-heading"
-      className="relative min-h-svh flex flex-col justify-center pt-16 overflow-hidden"
+      className="relative min-h-svh flex flex-col justify-center pt-24 pb-16 overflow-hidden bg-[#09090B]"
     >
-      <div className="relative z-10 mx-auto max-w-[1200px] w-full px-4 sm:px-6 py-16 sm:py-20">
-        <div className="max-w-3xl">
-          {/* Status chip */}
-          <div
-            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--availability)]/30 bg-[color:var(--availability)]/10 px-3 py-1.5 mb-8"
+      {/* Background radial glow */}
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{ y: prefersReduced ? 0 : glowY }}
+      >
+        <div
+          className="absolute -top-32 left-1/4 w-[700px] h-[700px] rounded-full opacity-20"
+          style={{
+            background: "radial-gradient(circle, #8B5CF6 0%, transparent 65%)",
+            filter: "blur(80px)",
+          }}
+        />
+        <div
+          className="absolute top-1/3 right-0 w-[500px] h-[500px] rounded-full opacity-10"
+          style={{
+            background: "radial-gradient(circle, #22D3EE 0%, transparent 65%)",
+            filter: "blur(80px)",
+          }}
+        />
+      </motion.div>
+
+      {/* Grid */}
+      <div className="relative z-10 mx-auto max-w-[1200px] w-full px-6 md:px-12 grid grid-cols-12 gap-8 items-center">
+
+        {/* ── Left column (7 cols) ───────────────────────────── */}
+        <div className="col-span-12 lg:col-span-7 flex flex-col gap-4 sm:gap-5">
+
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: EASE }}
+            className="inline-flex items-center gap-2 w-fit rounded-full border border-[rgba(34,197,94,0.3)] bg-[rgba(34,197,94,0.08)] px-3 py-1.5"
             role="status"
             aria-label="Availability status"
           >
+            <span className="relative flex h-2 w-2" aria-hidden="true">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]" />
+            </span>
+            <span className="font-mono text-xs font-medium text-[#22C55E]">
+              Available for immediate joining
+            </span>
+          </motion.div>
+
+          {/* Greeting Eyebrow */}
+          <motion.div
+            className="flex flex-wrap items-center gap-2 font-mono"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: EASE, delay: 0.1 }}
+          >
+            <span className="text-sm text-[#A1A1AA]">Hi, I&apos;m</span>
+            <span className="text-base sm:text-lg font-bold text-[#FAFAFA] tracking-wide font-space-grotesk">
+              Nitin Shinde
+            </span>
+            <span className="text-[#52525B]" aria-hidden="true">·</span>
+            <span className="text-xs sm:text-sm text-[#A1A1AA]">Pune, India</span>
+          </motion.div>
+
+          {/* Animated heading */}
+          <AnimatedHeading prefersReduced={prefersReduced} />
+
+          {/* Typewriter subtitle */}
+          <motion.p
+            className="font-mono text-sm text-[#A1A1AA] min-h-[1.5rem]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.5 }}
+          >
+            <span className="text-[#FAFAFA] font-medium">Senior PHP Developer</span>
+            {" | "}
+            <span className="text-[#8B5CF6]">{typewriterText}</span>
             <span
-              className="h-2 w-2 rounded-full bg-[color:var(--availability)] animate-pulse"
+              className="inline-block w-[2px] h-[13px] bg-[#8B5CF6] ml-0.5 align-middle"
+              style={{ animation: "blink 1.05s step-end infinite" }}
               aria-hidden="true"
             />
-            <span className="font-mono text-xs font-medium text-[color:var(--availability)]">
-              {profile.status}
-            </span>
-          </div>
+          </motion.p>
 
-          {/* Main heading */}
-          <h1
-            id="hero-heading"
-            className="text-4xl font-bold tracking-tight text-[color:var(--text)] sm:text-5xl lg:text-6xl leading-tight"
+          {/* Paragraph */}
+          <motion.p
+            className="text-[#A1A1AA] leading-relaxed max-w-xl text-base"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1, duration: 0.6, ease: EASE }}
           >
-            {profile.heroHeading}
-          </h1>
+            4.5 years building web applications, backend systems, REST APIs,
+            and custom WordPress solutions.
+          </motion.p>
 
-          {/* Sub title */}
-          <p className="mt-4 font-mono text-sm font-medium text-[color:var(--accent)]">
-            {profile.title}
-          </p>
-
-          {/* Intro */}
-          <p className="mt-6 text-[color:var(--muted)] leading-relaxed max-w-2xl text-base sm:text-lg">
-            {profile.heroIntro}
-          </p>
-
-          {/* Location */}
-          <p className="mt-4 flex items-center gap-1.5 text-sm text-[color:var(--muted)] font-mono">
-            <MapPin className="h-3.5 w-3.5 text-[color:var(--accent)]" aria-hidden="true" />
-            {profile.location}
-          </p>
-
-          {/* CTAs */}
-          <div className="mt-10 flex flex-wrap items-center gap-4">
-            <Link
+          {/* CTA buttons */}
+          <motion.div
+            className="flex flex-wrap items-center gap-4 mt-2"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.1, duration: 0.6, ease: EASE }}
+          >
+            {/* View My Projects — magnetic */}
+            <motion.a
+              ref={btn1Ref as React.RefObject<HTMLAnchorElement>}
               href="#projects"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[color:var(--accent)] text-white font-medium text-sm hover:bg-[color:var(--accent-hover)] transition-all duration-200 shadow-md shadow-[color:var(--accent)]/20 hover:shadow-lg hover:shadow-[color:var(--accent)]/30 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--background)]"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-[#FAFAFA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B]"
+              style={{
+                background: ACCENT_GRADIENT,
+                boxShadow: "0 4px 20px rgba(139,92,246,0.35)",
+                transform: `translate(${t1.x}px, ${t1.y}px)`,
+                transition: "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s",
+              }}
+              whileHover={{ scale: 1.02 }}
             >
               View My Projects
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </motion.a>
 
-            <a
-              href={profile.resumeUrl}
-              download
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[color:var(--border)] text-[color:var(--text)] font-medium text-sm hover:border-[color:var(--accent)]/50 hover:text-[color:var(--accent)] transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--background)]"
+            {/* Download Resume — magnetic */}
+            <motion.a
+              ref={btn2Ref as React.RefObject<HTMLAnchorElement>}
+              href="/Nitin_Shinde.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-[#FAFAFA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B]"
+              style={{
+                background: "linear-gradient(#09090B, #09090B) padding-box, linear-gradient(135deg, #8B5CF6, #22D3EE) border-box",
+                border: "1.5px solid transparent",
+                transform: `translate(${t2.x}px, ${t2.y}px)`,
+                transition: "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
+              }}
             >
-              <Download className="h-4 w-4" aria-hidden="true" />
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
               Download Resume
-            </a>
+            </motion.a>
 
-            <Link
+            {/* Contact Me — magnetic text link */}
+            <motion.a
+              ref={btn3Ref as React.RefObject<HTMLAnchorElement>}
               href="#contact"
-              className="text-sm font-medium text-[color:var(--accent)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] rounded ml-1"
+              className="text-sm font-medium text-[#8B5CF6] hover:text-[#22D3EE] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6] rounded"
+              style={{
+                transform: `translate(${t3.x}px, ${t3.y}px)`,
+                transition: "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s",
+              }}
             >
               Contact Me →
-            </Link>
-          </div>
-
-          {/* Stats strip with NumberTicker */}
-          <dl className="mt-14 grid grid-cols-3 gap-px border border-[color:var(--border)] rounded-xl overflow-hidden max-w-lg bg-[color:var(--border)] shadow-sm">
-            <div className="flex flex-col items-center justify-center py-5 px-4 bg-[color:var(--surface)] text-center">
-              <dt className="text-2xl font-bold text-[color:var(--accent)] font-mono flex items-center justify-center">
-                <NumberTicker value={4.5} decimalPlaces={1} />
-                <span>+</span>
-              </dt>
-              <dd className="mt-1 text-xs text-[color:var(--muted)] font-mono">
-                Years Experience
-              </dd>
-            </div>
-
-            <div className="flex flex-col items-center justify-center py-5 px-4 bg-[color:var(--surface)] text-center">
-              <dt className="text-2xl font-bold text-[color:var(--accent)] font-mono flex items-center justify-center">
-                <NumberTicker value={30} />
-                <span>+</span>
-              </dt>
-              <dd className="mt-1 text-xs text-[color:var(--muted)] font-mono">
-                Client Projects
-              </dd>
-            </div>
-
-            <div className="flex flex-col items-center justify-center py-5 px-4 bg-[color:var(--surface)] text-center">
-              <dt className="text-2xl font-bold text-[color:var(--accent)] font-mono flex items-center justify-center">
-                <NumberTicker value={10} />
-                <span>+</span>
-              </dt>
-              <dd className="mt-1 text-xs text-[color:var(--muted)] font-mono">
-                Apps Maintained
-              </dd>
-            </div>
-          </dl>
+            </motion.a>
+          </motion.div>
         </div>
 
-        {/* Marquee Tech Banner */}
-        <div className="mt-16 pt-8 border-t border-[color:var(--border)]/60 max-w-4xl">
-          <p className="font-mono text-xs uppercase tracking-widest text-[color:var(--muted)] mb-3">
-            Core Technologies &amp; Ecosystem
-          </p>
-          <div className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,white_15%,white_85%,transparent)]">
-            <Marquee pauseOnHover className="[--duration:30s] py-1">
-              {marqueeTechs.map((tech) => (
-                <span
-                  key={tech}
-                  className="font-mono text-xs px-3 py-1.5 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--muted)] hover:text-[color:var(--text)] hover:border-[color:var(--accent)]/50 transition-colors cursor-default"
-                >
-                  {tech}
-                </span>
-              ))}
-            </Marquee>
+        {/* ── Right column (5 cols) — code window ───────────── */}
+        <motion.div
+          className="col-span-12 lg:col-span-5 relative"
+          style={{ y: prefersReduced ? 0 : codeY }}
+          initial={{ opacity: 0, x: 32 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4, duration: 0.8, ease: EASE }}
+        >
+          <CodeWindow prefersReduced={prefersReduced} />
+
+          {/* Floating tech chips */}
+          <div className="relative mt-4 h-10">
+            <FloatingChip label="Laravel"     delay={0}   x="0%"   prefersReduced={prefersReduced} />
+            <FloatingChip label="WooCommerce" delay={0.6} x="33%"  prefersReduced={prefersReduced} />
+            <FloatingChip label="Stripe"      delay={1.2} x="68%"  prefersReduced={prefersReduced} />
           </div>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Animated grid background */}
-      <AnimatedGridPattern
-        numSquares={40}
-        maxOpacity={0.12}
-        duration={3}
-        repeatDelay={1}
-        className={cn(
-          "[mask-image:radial-gradient(800px_circle_at_center,white,transparent)]",
-          "stroke-[color:var(--border)] fill-[color:var(--accent)] text-[color:var(--accent)] opacity-60 z-0"
-        )}
-      />
+      {/* Scroll indicator */}
+      <ScrollIndicator prefersReduced={prefersReduced} />
+
+      {/* Blink keyframe via style tag */}
+      <style>{`
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
+        }
+      `}</style>
     </section>
   );
 }
