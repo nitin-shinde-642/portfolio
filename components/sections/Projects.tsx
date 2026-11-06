@@ -7,194 +7,68 @@ import {
   useCallback,
   type RefObject,
 } from "react";
-import { motion, useInView, type Variants } from "motion/react";
+import {
+  motion,
+  useInView,
+  useScroll,
+  useTransform,
+  useReducedMotion,
+  type Variants,
+} from "motion/react";
 import { SectionHeading } from "@/components/shared/SectionHeading";
 import { Chip } from "@/components/ui/Chip";
 import { projects, type Project } from "@/lib/data";
 import { EASE, viewportConfig } from "@/lib/motion";
 
-// ─── Diagram types ─────────────────────────────────────────────────────────────
+// ─── Flow Diagram Component ──────────────────────────────────────────────────
 
-interface DiagramNode {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-}
-
-interface DiagramEdge {
-  from: string;
-  to: string;
-}
-
-interface DiagramSpec {
-  nodes: DiagramNode[];
-  edges: DiagramEdge[];
-  width: number;
-  height: number;
-}
-
-function buildLinearDiagram(labels: string[]): DiagramSpec {
-  const nodeW = 90;
-  const nodeH = 32;
-  const gapX = 48;
-  const totalW = labels.length * nodeW + (labels.length - 1) * gapX;
-  const cx = 20; // left padding
-  const cy = 20;
-
-  const nodes: DiagramNode[] = labels.map((label, i) => ({
-    id: `n${i}`,
-    label,
-    x: cx + i * (nodeW + gapX),
-    y: cy,
-  }));
-
-  const edges: DiagramEdge[] = labels.slice(0, -1).map((_, i) => ({
-    from: `n${i}`,
-    to: `n${i + 1}`,
-  }));
-
-  return {
-    nodes,
-    edges,
-    width: cx + totalW + 20,
-    height: cy + nodeH + 20,
-  };
-}
-
-function getDiagramSpec(project: Project): DiagramSpec {
-  return buildLinearDiagram(project.flowNodes);
-}
-
-// ─── SVG Diagram ──────────────────────────────────────────────────────────────
-
-interface SVGDiagramProps {
+interface FlowDiagramProps {
   project: Project;
   animate: boolean;
 }
 
-const NODE_W = 90;
-const NODE_H = 32;
-const NODE_RX = 8;
-
-function SVGDiagram({ project, animate }: SVGDiagramProps) {
-  const spec = getDiagramSpec(project);
-
-  // Build SVG path for edge (horizontal line between node right and next node left)
-  function edgePath(fromNode: DiagramNode, toNode: DiagramNode) {
-    const x1 = fromNode.x + NODE_W;
-    const y1 = fromNode.y + NODE_H / 2;
-    const x2 = toNode.x;
-    const y2 = toNode.y + NODE_H / 2;
-    const mx = (x1 + x2) / 2;
-    return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
-  }
-
-  const nodeById = Object.fromEntries(spec.nodes.map((n) => [n.id, n]));
-
+function FlowDiagram({ project, animate }: FlowDiagramProps) {
   return (
-    <svg
-      viewBox={`0 0 ${spec.width} ${spec.height}`}
-      className="w-full overflow-visible"
-      style={{ maxHeight: 72 }}
-      aria-hidden="true"
+    <div
+      className="w-full my-3 py-1.5 overflow-x-auto no-scrollbar scroll-smooth"
+      aria-label="Workflow pipeline architecture"
     >
-      {/* Edges */}
-      {spec.edges.map((edge, ei) => {
-        const from = nodeById[edge.from];
-        const to = nodeById[edge.to];
-        if (!from || !to) return null;
-        const d = edgePath(from, to);
-        const lineLen = Math.abs(to.x - (from.x + NODE_W)) + 4;
+      <div className="flex items-center gap-2 min-w-max pb-1">
+        {project.flowNodes.map((label, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={animate ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+              transition={{ duration: 0.35, delay: i * 0.08, ease: EASE }}
+              className="group/node relative flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(17,17,20,0.9)] backdrop-blur-md shadow-sm transition-all duration-200 hover:border-[#8B5CF6]/50 hover:bg-[#8B5CF6]/10"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-[#8B5CF6] to-[#22D3EE] shrink-0" />
+              <span className="font-mono text-xs sm:text-[13px] font-semibold text-[#FAFAFA] tracking-wide whitespace-nowrap">
+                {label}
+              </span>
+            </motion.div>
 
-        return (
-          <g key={`edge-${ei}`}>
-            {/* Track */}
-            <path
-              d={d}
-              fill="none"
-              stroke="rgba(255,255,255,0.08)"
-              strokeWidth="1.5"
-            />
-            {/* Animated fill */}
-            <motion.path
-              d={d}
-              fill="none"
-              stroke="url(#diagramGrad)"
-              strokeWidth="1.5"
-              strokeDasharray={lineLen}
-              strokeDashoffset={lineLen}
-              animate={animate ? { strokeDashoffset: 0 } : { strokeDashoffset: lineLen }}
-              transition={{ duration: 0.6, delay: 0.2 + ei * 0.15, ease: EASE }}
-            />
-            {/* Travelling dot */}
-            {animate && (
-              <motion.circle
-                r={3}
-                fill="#22D3EE"
-                animate={{
-                  offsetDistance: ["0%", "100%"],
-                  opacity: [0, 1, 1, 0],
-                }}
-                style={{
-                  offsetPath: `path("${d}")`,
-                }}
-                transition={{
-                  duration: 1.5,
-                  delay: 0.5 + ei * 0.15,
-                  repeat: Infinity,
-                  repeatDelay: 1.5,
-                  ease: "linear",
-                }}
-              />
+            {i < project.flowNodes.length - 1 && (
+              <div className="flex items-center justify-center text-[#22D3EE]/70 shrink-0 px-0.5">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </div>
             )}
-          </g>
-        );
-      })}
-
-      {/* Gradient def */}
-      <defs>
-        <linearGradient id="diagramGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#8B5CF6" />
-          <stop offset="100%" stopColor="#22D3EE" />
-        </linearGradient>
-      </defs>
-
-      {/* Nodes */}
-      {spec.nodes.map((node, ni) => (
-        <g key={node.id}>
-          {/* Node background */}
-          <motion.rect
-            x={node.x}
-            y={node.y}
-            width={NODE_W}
-            height={NODE_H}
-            rx={NODE_RX}
-            fill="#111114"
-            stroke="rgba(255,255,255,0.12)"
-            strokeWidth="1"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={animate ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.35, delay: ni * 0.1, ease: EASE }}
-            style={{ transformOrigin: `${node.x + NODE_W / 2}px ${node.y + NODE_H / 2}px` }}
-          />
-          {/* Node label */}
-          <motion.text
-            x={node.x + NODE_W / 2}
-            y={node.y + NODE_H / 2 + 4.5}
-            textAnchor="middle"
-            fontSize="9"
-            fontFamily="var(--font-jetbrains-mono, monospace)"
-            fill="#A1A1AA"
-            initial={{ opacity: 0 }}
-            animate={animate ? { opacity: 1 } : { opacity: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 + ni * 0.1 }}
-          >
-            {node.label}
-          </motion.text>
-        </g>
-      ))}
-    </svg>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -228,6 +102,7 @@ function ProjectCard({ project, style, className }: ProjectCardProps) {
   return (
     <motion.div
       ref={ref}
+      data-project-card=""
       style={{
         rotateX: tilt.x,
         rotateY: tilt.y,
@@ -278,9 +153,9 @@ function ProjectCard({ project, style, className }: ProjectCardProps) {
         {project.title}
       </h3>
 
-      {/* SVG diagram */}
-      <div className="mb-4 py-2">
-        <SVGDiagram project={project} animate={isInView} />
+      {/* Architecture pipeline */}
+      <div className="mb-4">
+        <FlowDiagram project={project} animate={isInView} />
       </div>
 
       {/* Summary */}
@@ -376,6 +251,15 @@ function HorizontalScroll({ children, cardCount }: HorizontalScrollProps) {
     };
   }, [cardCount]);
 
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"],
+  });
+
+  const glowX = useTransform(scrollYProgress, [0, 1], ["20%", "85%"]);
+  const glowY = useTransform(scrollYProgress, [0, 1], ["35%", "65%"]);
+  const glowOpacity = useTransform(scrollYProgress, [0, 0.5, 1], [0.15, 0.28, 0.18]);
+
   return (
     <div
       ref={containerRef}
@@ -384,8 +268,25 @@ function HorizontalScroll({ children, cardCount }: HorizontalScrollProps) {
     >
       {/* Native CSS sticky container — pins 100% reliably at top: 0 without DOM injection */}
       <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col justify-between py-6 bg-[#09090B] z-20">
+        {/* Scroll-driven gradient background behind projects */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <motion.div
+            className="absolute w-[750px] max-w-[90vw] h-[750px] max-h-[90vh] rounded-full"
+            style={{
+              left: glowX,
+              top: glowY,
+              x: "-50%",
+              y: "-50%",
+              opacity: glowOpacity,
+              background:
+                "radial-gradient(circle, #8B5CF6 0%, rgba(34,211,238,0.4) 45%, transparent 70%)",
+              filter: "blur(130px)",
+            }}
+          />
+        </div>
+
         {/* Progress counter */}
-        <div className="flex items-center justify-between px-8 md:px-16 pt-4 pb-2 flex-shrink-0 max-w-[1400px] w-full mx-auto">
+        <div className="relative z-10 flex items-center justify-between px-8 md:px-16 pt-4 pb-2 flex-shrink-0 max-w-[1400px] w-full mx-auto">
           <SectionHeading
             label="04 / Projects"
             title="Selected Work"
@@ -428,8 +329,29 @@ function HorizontalScroll({ children, cardCount }: HorizontalScrollProps) {
 // ─── Mobile / reduced-motion stack ────────────────────────────────────────────
 
 function VerticalStack() {
+  const stackRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: stackRef,
+    offset: ["start end", "end start"],
+  });
+  const glowY = useTransform(scrollYProgress, [0, 1], ["10%", "85%"]);
+
   return (
-    <div>
+    <div ref={stackRef} className="relative overflow-hidden">
+      {/* Scroll-driven ambient gradient */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <motion.div
+          className="absolute left-1/2 -translate-x-1/2 w-[550px] max-w-[90vw] h-[550px] rounded-full"
+          style={{
+            top: glowY,
+            background:
+              "radial-gradient(circle, #8B5CF6 0%, rgba(34,211,238,0.35) 50%, transparent 70%)",
+            filter: "blur(120px)",
+            opacity: 0.2,
+          }}
+        />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}

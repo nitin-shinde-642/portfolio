@@ -210,7 +210,7 @@ function CodeWindow({ prefersReduced }: { prefersReduced: boolean }) {
 
   return (
     <div
-      className="rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden"
+      className="rounded-2xl border border-[rgba(255,255,255,0.08)] overflow-hidden w-full max-w-full"
       style={{
         background: "rgba(17,17,20,0.85)",
         backdropFilter: "blur(16px)",
@@ -219,11 +219,11 @@ function CodeWindow({ prefersReduced }: { prefersReduced: boolean }) {
       aria-label="PHP code sample"
     >
       {/* Traffic lights */}
-      <div className="flex items-center gap-1.5 px-4 py-3 border-b border-[rgba(255,255,255,0.06)]">
-        <span className="w-3 h-3 rounded-full bg-[#FF5F57]" aria-hidden="true" />
-        <span className="w-3 h-3 rounded-full bg-[#FFBD2E]" aria-hidden="true" />
-        <span className="w-3 h-3 rounded-full bg-[#28C840]" aria-hidden="true" />
-        <span className="ml-auto font-mono text-xs text-[#52525B]">SubscriptionService.php</span>
+      <div className="flex items-center gap-1.5 px-4 py-3 border-b border-[rgba(255,255,255,0.06)] min-w-0">
+        <span className="w-3 h-3 rounded-full bg-[#FF5F57] shrink-0" aria-hidden="true" />
+        <span className="w-3 h-3 rounded-full bg-[#FFBD2E] shrink-0" aria-hidden="true" />
+        <span className="w-3 h-3 rounded-full bg-[#28C840] shrink-0" aria-hidden="true" />
+        <span className="ml-auto font-mono text-xs text-[#52525B] truncate pl-2">SubscriptionService.php</span>
       </div>
 
       {/* Code */}
@@ -285,7 +285,7 @@ function AnimatedHeading({ prefersReduced }: { prefersReduced: boolean }) {
   return (
     <motion.h1
       id="hero-heading"
-      className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#FAFAFA] leading-[1.15] font-space-grotesk"
+      className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#FAFAFA] leading-[1.15] font-space-grotesk break-words max-w-full"
       variants={prefersReduced ? {} : staggerContainer}
       initial="hidden"
       animate="visible"
@@ -347,8 +347,10 @@ export function Hero() {
     offset: ["start start", "end start"],
   });
 
-  const rawCodeY = useTransform(scrollYProgress, [0, 1], ["0%", "-30%"]);
-  const rawGlowY = useTransform(scrollYProgress, [0, 1], ["0%", "-10%"]);
+  const rawCodeY = useTransform(scrollYProgress, [0, 1], ["0%", "-20%"]);
+  const rawGlowY = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
+  const glowScale = useTransform(scrollYProgress, [0, 0.8], [1, 1.25]);
+  const glowOpacity = useTransform(scrollYProgress, [0, 0.9], [1, 0.4]);
 
   const codeY = useSpring(rawCodeY, { stiffness: 80, damping: 20 });
   const glowY = useSpring(rawGlowY, { stiffness: 80, damping: 20 });
@@ -363,35 +365,35 @@ export function Hero() {
       id="home"
       ref={sectionRef}
       aria-labelledby="hero-heading"
-      className="relative min-h-svh flex flex-col justify-center pt-24 pb-16 overflow-hidden bg-[#09090B]"
+      className="relative min-h-svh flex flex-col justify-center pt-24 pb-16 overflow-x-clip overflow-y-visible bg-[#09090B] w-full max-w-full"
     >
-      {/* Background radial glow */}
+      {/* Background radial glow with scroll-driven parallax and scale */}
       <motion.div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{ y: prefersReduced ? 0 : glowY }}
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+        style={{ y: prefersReduced ? 0 : glowY, scale: prefersReduced ? 1 : glowScale, opacity: glowOpacity }}
       >
         <div
-          className="absolute -top-32 left-1/4 w-[700px] h-[700px] rounded-full opacity-20"
+          className="absolute -top-32 left-1/4 w-[650px] max-w-[90vw] h-[650px] rounded-full opacity-25"
           style={{
-            background: "radial-gradient(circle, #8B5CF6 0%, transparent 65%)",
-            filter: "blur(80px)",
+            background: "radial-gradient(circle, #8B5CF6 0%, rgba(139,92,246,0.3) 40%, transparent 70%)",
+            filter: "blur(90px)",
           }}
         />
         <div
-          className="absolute top-1/3 right-0 w-[500px] h-[500px] rounded-full opacity-10"
+          className="absolute top-1/3 right-0 w-[500px] max-w-[80vw] h-[500px] rounded-full opacity-15"
           style={{
-            background: "radial-gradient(circle, #22D3EE 0%, transparent 65%)",
-            filter: "blur(80px)",
+            background: "radial-gradient(circle, #22D3EE 0%, rgba(34,211,238,0.2) 40%, transparent 70%)",
+            filter: "blur(90px)",
           }}
         />
       </motion.div>
 
       {/* Grid */}
-      <div className="relative z-10 mx-auto max-w-[1200px] w-full px-6 md:px-12 grid grid-cols-12 gap-8 items-center">
+      <div className="relative z-10 mx-auto max-w-[1200px] w-full px-6 md:px-12 grid grid-cols-12 gap-8 items-center min-w-0">
 
         {/* ── Left column (7 cols) ───────────────────────────── */}
-        <div className="col-span-12 lg:col-span-7 flex flex-col gap-4 sm:gap-5">
+        <div className="col-span-12 lg:col-span-7 flex flex-col gap-4 sm:gap-5 min-w-0 max-w-full">
 
           {/* Badge */}
           <motion.div
@@ -459,7 +461,7 @@ export function Hero() {
 
           {/* CTA buttons */}
           <motion.div
-            className="flex flex-wrap items-center gap-4 mt-2"
+            className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2 max-w-full"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.1, duration: 0.6, ease: EASE }}
@@ -522,19 +524,33 @@ export function Hero() {
 
         {/* ── Right column (5 cols) — code window ───────────── */}
         <motion.div
-          className="col-span-12 lg:col-span-5 relative"
+          className="col-span-12 lg:col-span-5 relative min-w-0 max-w-full"
           style={{ y: prefersReduced ? 0 : codeY }}
-          initial={{ opacity: 0, x: 32 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.8, ease: EASE }}
         >
           <CodeWindow prefersReduced={prefersReduced} />
 
           {/* Floating tech chips */}
-          <div className="relative mt-4 h-10">
+          {/* Mobile: clean flex wrap */}
+          <div className="flex sm:hidden flex-wrap gap-2 mt-4">
+            <span className="font-mono text-xs px-3 py-1.5 rounded-full border border-[rgba(255,255,255,0.12)] text-[#A1A1AA] bg-[rgba(17,17,20,0.9)]">
+              Laravel
+            </span>
+            <span className="font-mono text-xs px-3 py-1.5 rounded-full border border-[rgba(255,255,255,0.12)] text-[#A1A1AA] bg-[rgba(17,17,20,0.9)]">
+              WooCommerce
+            </span>
+            <span className="font-mono text-xs px-3 py-1.5 rounded-full border border-[rgba(255,255,255,0.12)] text-[#A1A1AA] bg-[rgba(17,17,20,0.9)]">
+              Stripe
+            </span>
+          </div>
+
+          {/* Desktop: floating chips with parallax */}
+          <div className="hidden sm:block relative mt-4 h-10 w-full overflow-visible">
             <FloatingChip label="Laravel"     delay={0}   x="0%"   prefersReduced={prefersReduced} />
-            <FloatingChip label="WooCommerce" delay={0.6} x="33%"  prefersReduced={prefersReduced} />
-            <FloatingChip label="Stripe"      delay={1.2} x="68%"  prefersReduced={prefersReduced} />
+            <FloatingChip label="WooCommerce" delay={0.6} x="35%"  prefersReduced={prefersReduced} />
+            <FloatingChip label="Stripe"      delay={1.2} x="72%"  prefersReduced={prefersReduced} />
           </div>
         </motion.div>
       </div>

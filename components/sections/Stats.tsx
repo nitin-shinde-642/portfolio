@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
-import { motion } from "motion/react";
+import { motion, useScroll, useTransform, useReducedMotion } from "motion/react";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { stats } from "@/lib/data";
 import { EASE, viewportConfig } from "@/lib/motion";
@@ -77,13 +77,43 @@ function StatCard({ numericValue, suffix, decimalPlaces = 0, label, delay = 0 }:
 }
 
 export function Stats() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const prefersReduced = useReducedMotion() ?? false;
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+
+  const sweepX = useTransform(scrollYProgress, [0, 1], ["-60%", "120%"]);
+  const glowOpacity = useTransform(scrollYProgress, [0, 0.5, 1], [0.1, 0.28, 0.1]);
+
   return (
     <section
       id="stats"
+      ref={sectionRef}
       aria-label="Key Statistics"
-      className="relative z-10 w-full border-y border-white/[0.08] bg-[#09090B]/60 backdrop-blur-sm py-12 md:py-16"
+      className="relative z-10 w-full overflow-hidden border-y border-white/[0.08] bg-[#09090B]/60 backdrop-blur-sm py-12 md:py-16"
     >
-      <div className="mx-auto max-w-[1200px] px-6 md:px-12">
+      {/* Scroll-linked gradient sweep across stats */}
+      {!prefersReduced && (
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+          aria-hidden="true"
+        >
+          <motion.div
+            className="absolute inset-y-0 w-2/3"
+            style={{
+              x: sweepX,
+              opacity: glowOpacity,
+              background:
+                "linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.35) 45%, rgba(34,211,238,0.3) 70%, transparent 100%)",
+              filter: "blur(40px)",
+            }}
+          />
+        </div>
+      )}
+
+      <div className="relative z-10 mx-auto max-w-[1200px] px-6 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {stats.map((item, index) => {
             const hasDecimals = item.value % 1 !== 0;

@@ -33,8 +33,11 @@ const CommandPalette = dynamic(
   { ssr: false }
 );
 
-const Cursor = dynamic(
-  () => import("@/components/layout/Cursor").then((m) => m.Cursor),
+const ScrollBackground = dynamic(
+  () =>
+    import("@/components/layout/ScrollBackground").then(
+      (m) => m.ScrollBackground
+    ),
   { ssr: false }
 );
 
@@ -96,8 +99,8 @@ export default function HomePage() {
       {/* Preloader — shows once per session */}
       <Preloader />
 
-      {/* Custom cursor */}
-      <Cursor />
+      {/* Global scroll-driven ambient gradient background */}
+      <ScrollBackground />
 
       {/* Scroll progress bar */}
       <ScrollProgress />
@@ -109,7 +112,7 @@ export default function HomePage() {
       <Navbar />
 
       {/* ── Main content ── */}
-      <main id="main-content">
+      <main id="main-content" className="relative z-10 w-full max-w-full overflow-x-clip">
         <Hero />
         <Stats />
         <MarqueeSection />

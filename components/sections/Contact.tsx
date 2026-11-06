@@ -1,13 +1,22 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from "motion/react";
 import { profile } from "@/lib/data";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { EASE, viewportConfig } from "@/lib/motion";
 
 export function Contact() {
-  const [copiedEmail, setCopiedEmail] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+  const prefersReduced = useReducedMotion() ?? false;
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+
+  const glowScale = useTransform(scrollYProgress, [0, 0.7, 1], [0.85, 1.15, 1.05]);
+  const glowOpacity = useTransform(scrollYProgress, [0, 0.6, 1], [0.08, 0.25, 0.15]);
+
   const [formState, setFormState] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [formData, setFormData] = useState({
@@ -16,12 +25,6 @@ export function Contact() {
     message: "",
     website: "", // honeypot
   });
-
-  const handleCopyEmail = useCallback(() => {
-    navigator.clipboard.writeText(profile.email);
-    setCopiedEmail(true);
-    setTimeout(() => setCopiedEmail(false), 2200);
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,10 +71,30 @@ export function Contact() {
   return (
     <section
       id="contact"
+      ref={sectionRef}
       aria-labelledby="contact-heading"
-      className="relative z-10 w-full py-20 md:py-32"
+      className="relative z-10 w-full overflow-x-clip overflow-y-visible py-20 md:py-32"
     >
-      <div className="mx-auto max-w-[1200px] px-6 md:px-12">
+      {/* Scroll-linked ambient gradient background bloom */}
+      {!prefersReduced && (
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+          aria-hidden="true"
+        >
+          <motion.div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] max-w-[90vw] h-[700px] rounded-full"
+            style={{
+              scale: glowScale,
+              opacity: glowOpacity,
+              background:
+                "radial-gradient(circle, #8B5CF6 0%, rgba(34,211,238,0.3) 45%, transparent 70%)",
+              filter: "blur(130px)",
+            }}
+          />
+        </div>
+      )}
+
+      <div className="relative z-10 mx-auto max-w-[1200px] px-6 md:px-12">
         {/* Section Heading */}
         <div className="mb-12 md:mb-16">
           <div className="inline-flex items-center gap-2 text-xs font-mono font-medium tracking-widest text-[#8B5CF6] uppercase mb-3">
@@ -103,11 +126,10 @@ export function Contact() {
 
             {/* Contact Rows */}
             <div className="space-y-4">
-              {/* Email with copy */}
-              <button
-                type="button"
-                onClick={handleCopyEmail}
-                className="group flex w-full items-center justify-between rounded-xl border border-white/[0.08] bg-[#111114] p-4 text-left transition-all duration-200 hover:border-[#8B5CF6]/50 hover:bg-[#16161A]"
+              {/* Email direct link */}
+              <a
+                href={`mailto:${profile.email}`}
+                className="group flex w-full items-center justify-between rounded-xl border border-white/[0.08] bg-[#111114] p-4 text-left transition-all duration-200 hover:border-[#8B5CF6]/50 hover:bg-[#16161A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6]"
               >
                 <div className="flex items-center gap-3.5">
                   <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-[#8B5CF6] group-hover:scale-105 transition-transform">
@@ -124,11 +146,9 @@ export function Contact() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs font-mono text-[#22D3EE]">
-                  <span>{copiedEmail ? "Copied!" : "Copy"}</span>
+                  <span>Send</span>
                   <svg
-                    className={`w-4 h-4 transition-transform duration-200 ${
-                      copiedEmail ? "scale-110" : "group-hover:translate-x-1"
-                    }`}
+                    className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -137,7 +157,7 @@ export function Contact() {
                     <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
                 </div>
-              </button>
+              </a>
 
               {/* Phone */}
               <a

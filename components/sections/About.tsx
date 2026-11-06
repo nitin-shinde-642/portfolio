@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
-import { motion } from "motion/react";
+import { motion, useScroll, useTransform, useReducedMotion } from "motion/react";
 import { aboutContent } from "@/lib/data";
 import { EASE, viewportConfig } from "@/lib/motion";
 
@@ -62,13 +62,47 @@ function SpotlightCard({ children, className = "", delay = 0 }: SpotlightCardPro
 }
 
 export function About() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const prefersReduced = useReducedMotion() ?? false;
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+
+  const glowX = useTransform(scrollYProgress, [0, 1], ["65%", "25%"]);
+  const glowY = useTransform(scrollYProgress, [0, 1], ["10%", "70%"]);
+  const glowOpacity = useTransform(scrollYProgress, [0, 0.5, 1], [0.08, 0.22, 0.08]);
+
   return (
     <section
       id="about"
+      ref={sectionRef}
       aria-labelledby="about-heading"
-      className="relative z-10 w-full py-20 md:py-32"
+      className="relative z-10 w-full overflow-x-clip overflow-y-visible py-20 md:py-32"
     >
-      <div className="mx-auto max-w-[1200px] px-6 md:px-12">
+      {/* Scroll-linked background gradient aura */}
+      {!prefersReduced && (
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+          aria-hidden="true"
+        >
+          <motion.div
+            className="absolute w-[500px] max-w-[80vw] h-[500px] rounded-full"
+            style={{
+              left: glowX,
+              top: glowY,
+              x: "-50%",
+              y: "-50%",
+              opacity: glowOpacity,
+              background:
+                "radial-gradient(circle, #8B5CF6 0%, rgba(34,211,238,0.3) 50%, transparent 70%)",
+              filter: "blur(110px)",
+            }}
+          />
+        </div>
+      )}
+
+      <div className="relative z-10 mx-auto max-w-[1200px] px-6 md:px-12">
         {/* Section Heading */}
         <div className="mb-12 md:mb-16">
           <div className="inline-flex items-center gap-2 text-xs font-mono font-medium tracking-widest text-[#8B5CF6] uppercase mb-3">

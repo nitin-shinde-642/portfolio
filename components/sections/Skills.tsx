@@ -4,6 +4,9 @@ import { useRef } from "react";
 import {
   motion,
   useInView,
+  useScroll,
+  useTransform,
+  useReducedMotion,
   AnimatePresence,
   type Variants,
 } from "motion/react";
@@ -129,13 +132,47 @@ function cn(...classes: (string | undefined | false | null)[]) {
 // ─── Skills section ────────────────────────────────────────────────────────────
 
 export function Skills() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const prefersReduced = useReducedMotion() ?? false;
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+
+  const glowX = useTransform(scrollYProgress, [0, 1], ["20%", "80%"]);
+  const glowY = useTransform(scrollYProgress, [0, 1], ["20%", "75%"]);
+  const glowOpacity = useTransform(scrollYProgress, [0, 0.5, 1], [0.08, 0.2, 0.08]);
+
   return (
     <section
       id="skills"
+      ref={sectionRef}
       aria-labelledby="skills-heading"
-      className="py-20 md:py-32 border-t border-[rgba(255,255,255,0.08)] bg-[#09090B]"
+      className="relative overflow-x-clip overflow-y-visible py-20 md:py-32 border-t border-[rgba(255,255,255,0.08)] bg-[#09090B]"
     >
-      <div className="mx-auto max-w-[1200px] px-6 md:px-12">
+      {/* Scroll-linked background gradient */}
+      {!prefersReduced && (
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+          aria-hidden="true"
+        >
+          <motion.div
+            className="absolute w-[550px] max-w-[85vw] h-[550px] rounded-full"
+            style={{
+              left: glowX,
+              top: glowY,
+              x: "-50%",
+              y: "-50%",
+              opacity: glowOpacity,
+              background:
+                "radial-gradient(circle, #22D3EE 0%, rgba(139,92,246,0.35) 45%, transparent 70%)",
+              filter: "blur(120px)",
+            }}
+          />
+        </div>
+      )}
+
+      <div className="relative z-10 mx-auto max-w-[1200px] px-6 md:px-12">
         {/* Section heading with fade-up */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}

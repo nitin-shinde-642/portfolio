@@ -39,7 +39,8 @@
 
 /* Lenis smooth scroll: let Lenis own scrolling, remove native smooth */
 html {
-  overflow: visible;
+  max-width: 100%;
+  overflow-x: clip;
   /* Native scroll-behavior intentionally NOT set — Lenis handles it */
   scrollbar-gutter: stable;
   -webkit-font-smoothing: antialiased;
@@ -66,7 +67,8 @@ body {
   font-size: 1rem;
   line-height: 1.65;
   min-height: 100dvh;
-  overflow-x: hidden;
+  max-width: 100%;
+  overflow-x: clip;
   position: relative;
 }
 
@@ -106,68 +108,6 @@ body::before {
   will-change: transform;
 }
 
-/* ─── Custom cursor ─────────────────────────────────────────── */
-.cursor-dot {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #8b5cf6;
-  pointer-events: none;
-  z-index: 9999;
-  mix-blend-mode: difference;
-  will-change: transform;
-  transform: translate(-50%, -50%);
-}
-
-.cursor-ring {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(139, 92, 246, 0.6);
-  pointer-events: none;
-  z-index: 9999;
-  mix-blend-mode: difference;
-  will-change: transform;
-  transform: translate(-50%, -50%);
-  transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cursor-ring.cursor-hover {
-  width: 48px;
-  height: 48px;
-  border-color: rgba(139, 92, 246, 0.9);
-}
-
-.cursor-ring.cursor-project {
-  width: 64px;
-  height: 64px;
-  border-color: rgba(34, 211, 238, 0.8);
-}
-
-.cursor-ring-label {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.9);
-  letter-spacing: 0.05em;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  pointer-events: none;
-  user-select: none;
-  text-align: center;
-}
-
-.cursor-ring.cursor-project .cursor-ring-label {
-  opacity: 1;
-}
 
 /* ─── Scroll progress bar ───────────────────────────────────── */
 .scroll-progress {
@@ -347,8 +287,6 @@ body::before {
     scroll-behavior: auto !important;
   }
 
-  .cursor-dot,
-  .cursor-ring,
   .cursor-glow {
     display: none !important;
   }

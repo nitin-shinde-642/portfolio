@@ -36,13 +36,9 @@ export function CommandPalette() {
     }
   }, [close]);
 
-  const copyEmail = useCallback(() => {
-    navigator.clipboard.writeText(profile.email);
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-      close();
-    }, 1000);
+  const sendEmail = useCallback(() => {
+    close();
+    window.location.href = `mailto:${profile.email}`;
   }, [close]);
 
   const openLink = useCallback((url: string) => {
@@ -78,8 +74,8 @@ export function CommandPalette() {
       action: () => openLink(profile.resumeUrl),
     },
     {
-      id: "copy-email",
-      label: copied ? "Email Copied!" : "Copy Email",
+      id: "send-email",
+      label: "Send Email (shindenitin642@gmail.com)",
       group: "Actions",
       icon: ({ className }) => (
         <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -87,7 +83,7 @@ export function CommandPalette() {
           <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
         </svg>
       ),
-      action: copyEmail,
+      action: sendEmail,
     },
     {
       id: "github",

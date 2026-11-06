@@ -7,6 +7,7 @@ import {
   useInView,
   useScroll,
   useTransform,
+  useReducedMotion,
   type Variants,
 } from "motion/react";
 import { SectionHeading } from "@/components/shared/SectionHeading";
@@ -115,19 +116,22 @@ function TimelineLine({ containerRef }: TimelineLineProps) {
 // ─── Impact metric row ─────────────────────────────────────────────────────────
 
 function ImpactRow({ summary }: { summary: string }) {
-  // Split by | to render each metric in gradient
   const parts = summary.split("|").map((s) => s.trim());
 
   return (
     <div
-      className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 p-4 rounded-xl border border-[rgba(139,92,246,0.2)] bg-[rgba(139,92,246,0.05)]"
+      className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 sm:p-4 rounded-xl border border-[rgba(139,92,246,0.2)] bg-[rgba(139,92,246,0.04)]"
       role="note"
       aria-label="Impact summary"
     >
       {parts.map((part, i) => (
-        <span key={i} className="flex items-center gap-3">
+        <div
+          key={i}
+          className="flex items-center gap-2.5 rounded-lg bg-[rgba(17,17,20,0.85)] px-3.5 py-2.5 border border-[rgba(255,255,255,0.06)] shadow-sm"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-[#22D3EE] shrink-0" aria-hidden="true" />
           <span
-            className="text-sm font-medium"
+            className="text-xs sm:text-sm font-semibold tracking-wide"
             style={{
               background: "linear-gradient(90deg, #8B5CF6, #22D3EE)",
               WebkitBackgroundClip: "text",
@@ -137,10 +141,7 @@ function ImpactRow({ summary }: { summary: string }) {
           >
             {part}
           </span>
-          {i < parts.length - 1 && (
-            <span className="text-[#A1A1AA]" aria-hidden="true">|</span>
-          )}
-        </span>
+        </div>
       ))}
     </div>
   );
@@ -346,15 +347,42 @@ function ExperienceCard({ item, index }: ExperienceCardProps) {
 
 export function Experience() {
   const sectionRef = useRef<HTMLElement>(null);
+  const prefersReduced = useReducedMotion() ?? false;
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+
+  const glowY = useTransform(scrollYProgress, [0, 1], ["5%", "90%"]);
+  const glowOpacity = useTransform(scrollYProgress, [0, 0.5, 1], [0.08, 0.22, 0.08]);
 
   return (
     <section
       id="experience"
       ref={sectionRef}
       aria-labelledby="experience-heading"
-      className="py-20 md:py-32 border-t border-[rgba(255,255,255,0.08)] bg-[#09090B]"
+      className="relative overflow-x-clip overflow-y-visible py-20 md:py-32 border-t border-[rgba(255,255,255,0.08)] bg-[#09090B]"
     >
-      <div className="mx-auto max-w-[1200px] px-6 md:px-12">
+      {/* Scroll-linked ambient vertical gradient that travels down the timeline */}
+      {!prefersReduced && (
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+          aria-hidden="true"
+        >
+          <motion.div
+            className="absolute left-1/2 -translate-x-1/2 w-[600px] max-w-[90vw] h-[400px] rounded-full"
+            style={{
+              top: glowY,
+              opacity: glowOpacity,
+              background:
+                "radial-gradient(ellipse 60% 50% at 50% 50%, #8B5CF6 0%, rgba(34,211,238,0.25) 50%, transparent 75%)",
+              filter: "blur(110px)",
+            }}
+          />
+        </div>
+      )}
+
+      <div className="relative z-10 mx-auto max-w-[1200px] px-6 md:px-12">
         {/* Section heading */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
